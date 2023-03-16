@@ -26,6 +26,7 @@ func (a ASCIIString) Generate(rand *rand.Rand, size int) reflect.Value {
 
 type UTF8String string
 
+// this is way to slow - needs to figure out a better way
 func (a UTF8String) Generate(rand *rand.Rand, size int) reflect.Value {
 	s := strings.Builder{}
 	i := size

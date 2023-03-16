@@ -60,6 +60,10 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 	return sizedValue(t, rand, complexSize)
 }
 
+func Shrink(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+	return sizedValue(t, rand, complexSize)
+}
+
 // sizedValue returns an arbitrary value of the given type. The size
 // hint is used for shrinking as a function of indirection level so
 // that recursive data structures will terminate.
@@ -191,6 +195,7 @@ type Config struct {
 	// arguments to the function being tested.
 	// If nil, the top-level Value function is used to generate them.
 	Values func([]reflect.Value, *rand.Rand)
+	Shrink func([]reflect.Value, *rand.Rand)
 }
 
 var defaultConfig Config
@@ -287,7 +292,8 @@ func Check(f any, config *Config) error {
 			return err
 		}
 
-		if !fVal.Call(arguments)[0].Bool() {
+		success := !fVal.Call(arguments)[0].Bool()
+		if !success {
 			return &CheckError{i + 1, toInterfaces(arguments)}
 		}
 	}
@@ -349,6 +355,24 @@ func arbitraryValues(args []reflect.Value, f reflect.Type, config *Config, rand 
 	for j := 0; j < len(args); j++ {
 		var ok bool
 		args[j], ok = Value(f.In(j), rand)
+		if !ok {
+			err = SetupError(fmt.Sprintf("cannot create arbitrary value of type %s for argument %d", f.In(j), j))
+			return
+		}
+	}
+
+	return
+}
+
+func arbitraryShrink(args []reflect.Value, f reflect.Type, config *Config, rand *rand.Rand) (err error) {
+	if config.Shrink != nil {
+		config.Shrink(args, rand)
+		return
+	}
+
+	for j := 0; j < len(args); j++ {
+		var ok bool
+		args[j], ok = Shrink(f.In(j), rand)
 		if !ok {
 			err = SetupError(fmt.Sprintf("cannot create arbitrary value of type %s for argument %d", f.In(j), j))
 			return
